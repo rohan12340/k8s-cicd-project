@@ -1,108 +1,105 @@
-name: Kubernetes CI/CD
+name: Kubernetes CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
 
-env:
-
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-
-  IMAGE_TAG: v${{ github.run_number }}
-
 jobs:
-
   deploy:
-
     runs-on: self-hosted
 
     steps:
+      # Checkout source code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    ####################################
+      # Show current directory (Debug)
+      - name: Debug Repository
+        shell: powershell
+        run: |
+          Write-Host "Current Directory:"
+          Get-Location
 
-    - name: Checkout Source
+          Write-Host ""
+          Write-Host "Repository Files:"
+          Get-ChildItem
 
-      uses: actions/checkout@v4
+          Write-Host ""
+          Write-Host "Backend Files:"
+          Get-ChildItem .\backend
 
-    ####################################
+          Write-Host ""
+          Write-Host "Frontend Files:"
+          Get-ChildItem .\frontend
 
-    - name: Login Docker Hub
+      # Docker Login
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      uses: docker/login-action@v3
+      # Verify Tools
+      - name: Verify Tools
+        shell: powershell
+        run: |
+          docker --version
+          kubectl version --client
+          helm version
+          minikube status
 
-      with:
+      # Build Backend
+      - name: Build Backend Image
+        shell: powershell
+        run: |
+          docker build `
+            -f .\backend\Dockerfile `
+            -t "${{ secrets.DOCKER_USERNAME }}/backend:v${{ github.run_number }}" `
+            .\backend
 
-        username: ${{ secrets.DOCKER_USERNAME }}
+      # Build Frontend
+      - name: Build Frontend Image
+        shell: powershell
+        run: |
+          docker build `
+            -f .\frontend\Dockerfile `
+            -t "${{ secrets.DOCKER_USERNAME }}/frontend:v${{ github.run_number }}" `
+            .\frontend
 
-        password: ${{ secrets.DOCKER_PASSWORD }}
+      # Push Backend
+      - name: Push Backend Image
+        shell: powershell
+        run: |
+          docker push "${{ secrets.DOCKER_USERNAME }}/backend:v${{ github.run_number }}"
 
-    ####################################
+      # Push Frontend
+      - name: Push Frontend Image
+        shell: powershell
+        run: |
+          docker push "${{ secrets.DOCKER_USERNAME }}/frontend:v${{ github.run_number }}"
 
-    - name: Build Backend
+      # Check Kubernetes Cluster
+      - name: Check Cluster
+        shell: powershell
+        run: |
+          kubectl get nodes
 
-      run: |
+      # Helm Deploy
+      - name: Deploy using Helm
+        shell: powershell
+        run: |
+          helm upgrade --install fullstack-app .\helm `
+            --set frontend.image.repository=${{ secrets.DOCKER_USERNAME }}/frontend `
+            --set frontend.image.tag=v${{ github.run_number }} `
+            --set backend.image.repository=${{ secrets.DOCKER_USERNAME }}/backend `
+            --set backend.image.tag=v${{ github.run_number }}
 
-        docker build \
-        -t $DOCKER_USERNAME/backend:$IMAGE_TAG \
-        ./backend
-
-    ####################################
-
-    - name: Build Frontend
-
-      run: |
-
-        docker build \
-        -t $DOCKER_USERNAME/frontend:$IMAGE_TAG \
-        ./frontend
-
-    ####################################
-
-    - name: Push Backend
-
-      run: |
-
-        docker push $DOCKER_USERNAME/backend:$IMAGE_TAG
-
-    ####################################
-
-    - name: Push Frontend
-
-      run: |
-
-        docker push $DOCKER_USERNAME/frontend:$IMAGE_TAG
-
-    ####################################
-
-    - name: Check Minikube
-
-      run: |
-
-        kubectl get nodes
-
-    ####################################
-
-    - name: Deploy Helm
-
-      run: |
-
-        helm upgrade --install fullstack-app ./helm \
-        --set frontend.image.repository=$DOCKER_USERNAME/frontend \
-        --set frontend.image.tag=$IMAGE_TAG \
-        --set backend.image.repository=$DOCKER_USERNAME/backend \
-        --set backend.image.tag=$IMAGE_TAG
-
-    ####################################
-
-    - name: Verify Deployment
-
-      run: |
-
-        kubectl get pods
-
-        kubectl get svc
-
-        kubectl get deployment
-
-        helm list
+      # Verify Deployment
+      - name: Verify Deployment
+        shell: powershell
+        run: |
+          kubectl get pods
+          kubectl get svc
+          kubectl get deployments
+          helm list
