@@ -1,0 +1,35 @@
+frontend:
+
+  replicaCount: 2
+
+  image:
+
+    repository: mrohan123/frontend
+
+    tag: v1
+
+    pullPolicy: Always
+
+  service:
+
+    type: ClusterIP
+
+    port: 3000
+
+backend:
+
+  replicaCount: 2
+
+  image:
+
+    repository: mrohan123/backend
+
+    tag: v1
+
+    pullPolicy: Always
+
+  service:
+
+    type: ClusterIP
+
+    port: 5000

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>Kubernetes CI/CD</title>
+
+</head>
+
+<body style="font-family:Arial;text-align:center">
+
+    <h1>Kubernetes CI/CD Project</h1>
+
+    <h2>Frontend Running</h2>
+
+    <button onclick="loadBackend()">
+        Call Backend
+    </button>
+
+    <pre id="result"></pre>
+
+<script>
+
+function loadBackend(){
+
+fetch("http://localhost:5000")
+
+.then(res=>res.json())
+
+.then(data=>{
+
+document.getElementById("result").innerHTML=
+
+JSON.stringify(data,null,2)
+
+})
+
+}
+
+</script>
+
+</body>
+
+</html>
